@@ -4,10 +4,14 @@ import { Spinner } from '../components/Spinner';
 import { CountdownTimer } from '../components/CountdownTimer';
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
   useParticipants,
+  useTracks,
+  GridLayout,
+  ParticipantTile,
+  ControlBar,
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import { Copy, Check, Video, User, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 interface RoomPageProps {
@@ -156,11 +160,35 @@ export const RoomPage: React.FC<RoomPageProps> = ({ linkId, onGoBack }) => {
         className="flex-1 flex flex-col h-full"
       >
         <RoomTopBar onLeave={leave} />
-        <div className="flex-1 min-h-0 relative">
-          <VideoConference />
-        </div>
+        <CustomActiveConference />
         <RoomAudioRenderer />
       </LiveKitRoom>
+    </div>
+  );
+};
+
+const CustomActiveConference: React.FC = () => {
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+
+  return (
+    <div className="flex-1 min-h-0 flex flex-col w-full bg-[#0c0d12]">
+      {/* Grid of participants using LiveKit's native GridLayout */}
+      <div className="flex-1 min-h-0 relative">
+        <GridLayout tracks={tracks} className="absolute inset-0">
+          <ParticipantTile />
+        </GridLayout>
+      </div>
+
+      {/* Control Bar */}
+      <div className="px-6 py-4 bg-[#16171d]/90 border-t border-[#2e303a] backdrop-blur-md flex justify-center items-center">
+        <ControlBar controls={{ chat: false, settings: false }} />
+      </div>
     </div>
   );
 };
@@ -186,7 +214,7 @@ const RoomTopBar: React.FC<RoomTopBarProps> = ({ onLeave }) => {
   return (
     <div className="flex items-center justify-between px-6 py-4 bg-[#16171d]/90 border-b border-[#2e303a] backdrop-blur-md z-10 text-white">
       <div className="flex items-center gap-3">
-        <span className="font-bold text-base tracking-wide text-gray-100">Antigravity Room</span>
+        <span className="font-bold text-base tracking-wide text-gray-100">Room</span>
         <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent-bg border border-accent-border/30 text-accent font-semibold">
           {participants.length} Active
         </span>
