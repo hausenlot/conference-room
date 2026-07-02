@@ -1,5 +1,5 @@
 # Quick Video Demo
-<video controls src="demo/demo.mp4" title="Title"></video>
+<video controls src="demo/demo_compressed.mp4" title="Title"></video>
 
 # Screenshots
 ### Form Page
