@@ -35,6 +35,11 @@ export interface RoomStatusResponse {
   participantCount: number;
 }
 
+export interface AgentDispatchResponse {
+  success: boolean;
+  dispatch: any;
+}
+
 /**
  * Service to handle communication with the backend API endpoints.
  */
@@ -130,4 +135,25 @@ export const ApiService = {
     }
     return response.json();
   },
+
+  /**
+   * Spawns an agent in the specified room.
+   */
+  async dispatchAgent(roomName: string, identity: string, name?: string): Promise<AgentDispatchResponse> {
+    const response = await fetch('/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roomName, identity, name }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || `Failed to dispatch agent: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
 };
+

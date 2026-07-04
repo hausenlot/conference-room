@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useRoomJoiner } from '../handlers/useRoomJoiner';
+import { useAgentDispatcher } from '../handlers/useAgentDispatcher';
+import { useRoomChat } from '../handlers/useRoomChat';
 import { Spinner } from '../components/Spinner';
 import { CountdownTimer } from '../components/CountdownTimer';
 import {
@@ -12,7 +14,9 @@ import {
   ControlBar,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Copy, Check, Video, User, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Copy, Check, Video, User, ShieldAlert, ArrowLeft, Bot, Sparkles, MessageSquare } from 'lucide-react';
+import { CustomChat } from '../components/CustomChat';
+
 
 interface RoomPageProps {
   linkId: string;
@@ -33,6 +37,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ linkId, onGoBack }) => {
     join,
     leave,
   } = useRoomJoiner(linkId);
+
+  const { isChatOpen, toggleChat } = useRoomChat();
 
   if (isVerifying) {
     return (
@@ -157,17 +163,29 @@ export const RoomPage: React.FC<RoomPageProps> = ({ linkId, onGoBack }) => {
         serverUrl={connectionDetails.url}
         connect={true}
         onDisconnected={leave}
-        className="flex-1 flex flex-col h-full"
+        className="flex-1 flex flex-col h-full min-h-0 overflow-hidden"
       >
-        <RoomTopBar onLeave={leave} />
-        <CustomActiveConference />
+        <RoomTopBar
+          onLeave={leave}
+          roomName={connectionDetails.roomName}
+          identity={connectionDetails.participantIdentity}
+          name={participantName}
+          isChatOpen={isChatOpen}
+          onToggleChat={toggleChat}
+        />
+        <CustomActiveConference isChatOpen={isChatOpen} onToggleChat={toggleChat} />
         <RoomAudioRenderer />
       </LiveKitRoom>
     </div>
   );
 };
 
-const CustomActiveConference: React.FC = () => {
+interface CustomActiveConferenceProps {
+  isChatOpen: boolean;
+  onToggleChat: () => void;
+}
+
+const CustomActiveConference: React.FC<CustomActiveConferenceProps> = ({ isChatOpen, onToggleChat }) => {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -176,18 +194,40 @@ const CustomActiveConference: React.FC = () => {
     { onlySubscribed: false }
   );
 
+  const participants = useParticipants();
+
+  React.useEffect(() => {
+    const debugList = participants.map((p) => ({
+      identity: p.identity,
+      name: p.name || 'N/A',
+      isLocal: p.isLocal,
+      metadata: p.metadata || 'None',
+      connectionQuality: p.connectionQuality,
+    }));
+    console.log('[DEBUG] Active Participants List:');
+    console.table(debugList);
+  }, [participants]);
+
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full bg-[#0c0d12]">
-      {/* Grid of participants using LiveKit's native GridLayout */}
-      <div className="flex-1 min-h-0 relative">
-        <GridLayout tracks={tracks} className="absolute inset-0">
-          <ParticipantTile />
-        </GridLayout>
+    <div className="flex-1 min-h-0 flex flex-row w-full bg-[#0c0d12] overflow-hidden">
+      {/* Main Video & Controls area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {/* Grid of participants using LiveKit's native GridLayout */}
+        <div className="flex-1 min-h-0 relative">
+          <GridLayout tracks={tracks} className="absolute inset-0">
+            <ParticipantTile />
+          </GridLayout>
+        </div>
+
+        {/* Control Bar */}
+        <div className="px-6 py-4 bg-[#16171d]/90 border-t border-[#2e303a] backdrop-blur-md flex justify-center items-center">
+          <ControlBar controls={{ chat: false, settings: false }} />
+        </div>
       </div>
 
-      {/* Control Bar */}
-      <div className="px-6 py-4 bg-[#16171d]/90 border-t border-[#2e303a] backdrop-blur-md flex justify-center items-center">
-        <ControlBar controls={{ chat: false, settings: false }} />
+      {/* Sidebar Chat Box */}
+      <div className={`w-80 md:w-96 flex-col h-full min-h-0 bg-[#111218] border-l border-[#2e303a] overflow-hidden animate-slide-in ${isChatOpen ? 'flex' : 'hidden'}`}>
+        <CustomChat onClose={onToggleChat} />
       </div>
     </div>
   );
@@ -195,11 +235,32 @@ const CustomActiveConference: React.FC = () => {
 
 interface RoomTopBarProps {
   onLeave: () => void;
+  roomName: string;
+  identity: string;
+  name?: string;
+  isChatOpen: boolean;
+  onToggleChat: () => void;
 }
 
-const RoomTopBar: React.FC<RoomTopBarProps> = ({ onLeave }) => {
+const RoomTopBar: React.FC<RoomTopBarProps> = ({
+  onLeave,
+  roomName,
+  identity,
+  name,
+  isChatOpen,
+  onToggleChat,
+}) => {
   const participants = useParticipants();
   const [copied, setCopied] = useState(false);
+
+  const { isDispatching, isDispatched, dispatchError, dispatchAgent } = useAgentDispatcher();
+
+  const isAgentInRoom = participants.some(p =>
+    p.identity.toLowerCase().includes('agent') ||
+    (p.name && p.name.toLowerCase().includes('agent'))
+  );
+
+  const hasAgent = isDispatched || isAgentInRoom;
 
   const copyUrl = async () => {
     try {
@@ -212,7 +273,7 @@ const RoomTopBar: React.FC<RoomTopBarProps> = ({ onLeave }) => {
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 bg-[#16171d]/90 border-b border-[#2e303a] backdrop-blur-md z-10 text-white">
+    <div className="flex items-center justify-between px-6 py-4 bg-[#16171d]/90 border-b border-[#2e303a] backdrop-blur-md z-10 text-white relative">
       <div className="flex items-center gap-3">
         <span className="font-bold text-base tracking-wide text-gray-100">Room</span>
         <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent-bg border border-accent-border/30 text-accent font-semibold">
@@ -220,7 +281,66 @@ const RoomTopBar: React.FC<RoomTopBarProps> = ({ onLeave }) => {
         </span>
       </div>
 
+      {/* Add a button here for the endpoint /api/token */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!hasAgent) {
+              dispatchAgent(roomName, identity, name);
+            }
+          }}
+          disabled={hasAgent || isDispatching}
+          className={`
+            px-5 py-2 rounded-xl font-semibold shadow-md transition-all duration-200 active:scale-95
+            flex items-center gap-2 border text-sm
+            ${hasAgent
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-not-allowed shadow-none'
+              : isDispatching
+                ? 'bg-[#8b5cf6]/20 border-[#8b5cf6]/40 text-[#8b5cf6]/70 cursor-wait'
+                : 'bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 border-[#8b5cf6]/30 hover:border-[#8b5cf6]/50 text-white shadow-[#8b5cf6]/5 hover:shadow-[#8b5cf6]/15 cursor-pointer'
+            }
+          `}
+        >
+          {hasAgent ? (
+            <>
+              <Bot className="w-4 h-4 text-emerald-400" />
+              <span>AI Agent Active</span>
+            </>
+          ) : isDispatching ? (
+            <>
+              <Sparkles className="w-4 h-4 animate-spin text-[#8b5cf6]" />
+              <span>Invoking Agent...</span>
+            </>
+          ) : (
+            <>
+              <Bot className="w-4 h-4 text-[#8b5cf6]" />
+              <span>Call AI Agent</span>
+            </>
+          )}
+        </button>
+
+        {dispatchError && (
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50 text-[10px] text-red-400 bg-[#16171d] border border-red-500/30 px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap">
+            {dispatchError}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center gap-3">
+        <button
+          onClick={onToggleChat}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition active:scale-95 ${isChatOpen
+            ? 'bg-accent border border-accent text-white hover:bg-accent/90'
+            : 'bg-[#1f2028] border border-[#2e303a] hover:bg-[#2e303a] text-gray-200 shadow-md'
+            }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Chat</span>
+        </button>
+
         <button
           onClick={copyUrl}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1f2028] border border-[#2e303a] hover:bg-[#2e303a] rounded-lg text-sm font-semibold transition active:scale-95 text-gray-200"

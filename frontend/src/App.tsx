@@ -6,7 +6,7 @@ function App() {
   const { page, linkId, navigate } = useRouter();
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
+    <div className={`${page === 'create' ? 'min-h-screen' : 'h-[100dvh] max-h-[100dvh]'} flex flex-col relative overflow-hidden`}>
       {/* Background glow effects */}
       <div className="bg-gradient-glow top-1/4 left-1/4 animate-pulse-glow" style={{ animationDelay: '0s' }}></div>
       <div className="bg-gradient-glow bottom-1/4 right-1/4 animate-pulse-glow" style={{ animationDelay: '4s' }}></div>

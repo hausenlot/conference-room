@@ -5,6 +5,7 @@ import linkRouter from './routes/link.routes.js';
 import roomRouter from './routes/room.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
+import agentRouter from './routes/agent.routes.js';
 import { notFoundHandler, errorHandler } from './middlewares/error.js';
 
 const app = express();
@@ -28,6 +29,8 @@ app.use('/api/health', healthRouter);
 app.use('/api/links', linkRouter);
 app.use('/api/rooms', roomRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api', agentRouter);
+
 
 // Fallback middlewares for error handling
 app.use(notFoundHandler);

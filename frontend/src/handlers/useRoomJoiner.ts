@@ -40,8 +40,8 @@ export function useRoomJoiner(linkId: string | null) {
         if (!active) return;
 
         // Extra client-side check for expiry
-        const isExpired = status.status === 'expired' || 
-                          (status.expiresAt && new Date() > new Date(status.expiresAt));
+        const isExpired = status.status === 'expired' ||
+          (status.expiresAt && new Date() > new Date(status.expiresAt));
 
         if (isExpired) {
           setVerifyError('This link has expired');
@@ -119,10 +119,10 @@ export function useRoomJoiner(linkId: string | null) {
   // Leave room function
   const leave = async () => {
     if (!linkId || !identityRef.current || leaveCalledRef.current) return;
-    
+
     leaveCalledRef.current = true;
     const currentIdentity = identityRef.current;
-    
+
     // Clear state immediately for UI responsiveness
     setJoined(false);
     setConnectionDetails(null);
